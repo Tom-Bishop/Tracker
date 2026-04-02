@@ -46,13 +46,23 @@ export const onRequestPost = async (context) => {
       return jsonResponse({ error: 'Invalid login credentials.' }, 401)
     }
 
-    const validPassword = await verifyPassword(passwordValue, user.password_hash)
+    let validPassword
+    try {
+      validPassword = await verifyPassword(passwordValue, user.password_hash)
+    } catch {
+      return jsonResponse({ error: 'Password verification failed. Check Worker crypto support.' }, 500)
+    }
     if (!validPassword) {
       await writeAuditLog(context, user.id, 'auth.login.failed', { email: normalizedEmail })
       return jsonResponse({ error: 'Invalid login credentials.' }, 401)
     }
 
-    const session = await signSession(user.id, context.env.SESSION_SECRET)
+    let session
+    try {
+      session = await signSession(user.id, context.env.SESSION_SECRET)
+    } catch {
+      return jsonResponse({ error: 'Session signing failed. Check SESSION_SECRET configuration.' }, 500)
+    }
 
     await writeAuditLog(context, user.id, 'auth.login.success')
 

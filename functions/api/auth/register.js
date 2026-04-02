@@ -44,7 +44,12 @@ export const onRequestPost = async (context) => {
       return jsonResponse({ error: 'This email is already registered.' }, 409)
     }
 
-    const passwordHash = await hashPassword(passwordValue)
+    let passwordHash
+    try {
+      passwordHash = await hashPassword(passwordValue)
+    } catch {
+      return jsonResponse({ error: 'Password hashing failed. Check Worker crypto support.' }, 500)
+    }
 
     let insertResult
     try {
@@ -62,7 +67,12 @@ export const onRequestPost = async (context) => {
       return jsonResponse({ error: 'Account creation succeeded but no user id was returned.' }, 500)
     }
 
-    const session = await signSession(userId, context.env.SESSION_SECRET)
+    let session
+    try {
+      session = await signSession(userId, context.env.SESSION_SECRET)
+    } catch {
+      return jsonResponse({ error: 'Session signing failed. Check SESSION_SECRET configuration.' }, 500)
+    }
 
     await writeAuditLog(context, userId, 'auth.register', {
       email: normalizedEmail,
