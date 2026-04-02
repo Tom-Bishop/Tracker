@@ -12,60 +12,64 @@ function jsonResponse(data, status = 200, headers = {}) {
 }
 
 export const onRequestPost = async (context) => {
-  if (!context.env.SESSION_SECRET) {
-    return jsonResponse({ error: 'Server is missing SESSION_SECRET configuration.' }, 500)
-  }
-
-  if (!context.env.DB) {
-    return jsonResponse({ error: 'Server is missing DB binding configuration.' }, 500)
-  }
-
-  const { email, password } = await context.request.json().catch(() => ({}))
-
-  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : ''
-  const passwordValue = typeof password === 'string' ? password : ''
-
-  if (!normalizedEmail || !passwordValue) {
-    return jsonResponse({ error: 'Email and password are required.' }, 400)
-  }
-
-  let user
   try {
-    user = await context.env.DB.prepare(
-      'SELECT id, email, display_name, password_hash FROM users WHERE email = ?',
-    )
-      .bind(normalizedEmail)
-      .first()
-  } catch {
-    return jsonResponse({ error: 'Database schema not initialized. Run migrations (0001, 0002, 0003).' }, 500)
-  }
+    if (!context.env.SESSION_SECRET) {
+      return jsonResponse({ error: 'Server is missing SESSION_SECRET configuration.' }, 500)
+    }
 
-  if (!user) {
-    await writeAuditLog(context, null, 'auth.login.failed', { email: normalizedEmail })
-    return jsonResponse({ error: 'Invalid login credentials.' }, 401)
-  }
+    if (!context.env.DB) {
+      return jsonResponse({ error: 'Server is missing DB binding configuration.' }, 500)
+    }
 
-  const validPassword = await verifyPassword(passwordValue, user.password_hash)
-  if (!validPassword) {
-    await writeAuditLog(context, user.id, 'auth.login.failed', { email: normalizedEmail })
-    return jsonResponse({ error: 'Invalid login credentials.' }, 401)
-  }
+    const { email, password } = await context.request.json().catch(() => ({}))
 
-  const session = await signSession(user.id, context.env.SESSION_SECRET)
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : ''
+    const passwordValue = typeof password === 'string' ? password : ''
 
-  await writeAuditLog(context, user.id, 'auth.login.success')
+    if (!normalizedEmail || !passwordValue) {
+      return jsonResponse({ error: 'Email and password are required.' }, 400)
+    }
 
-  return jsonResponse(
-    {
-      user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.display_name,
+    let user
+    try {
+      user = await context.env.DB.prepare(
+        'SELECT id, email, display_name, password_hash FROM users WHERE email = ?',
+      )
+        .bind(normalizedEmail)
+        .first()
+    } catch {
+      return jsonResponse({ error: 'Database schema not initialized. Run migrations (0001, 0002, 0003).' }, 500)
+    }
+
+    if (!user) {
+      await writeAuditLog(context, null, 'auth.login.failed', { email: normalizedEmail })
+      return jsonResponse({ error: 'Invalid login credentials.' }, 401)
+    }
+
+    const validPassword = await verifyPassword(passwordValue, user.password_hash)
+    if (!validPassword) {
+      await writeAuditLog(context, user.id, 'auth.login.failed', { email: normalizedEmail })
+      return jsonResponse({ error: 'Invalid login credentials.' }, 401)
+    }
+
+    const session = await signSession(user.id, context.env.SESSION_SECRET)
+
+    await writeAuditLog(context, user.id, 'auth.login.success')
+
+    return jsonResponse(
+      {
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.display_name,
+        },
       },
-    },
-    200,
-    {
-      'Set-Cookie': makeSessionCookie(session),
-    },
-  )
+      200,
+      {
+        'Set-Cookie': makeSessionCookie(session),
+      },
+    )
+  } catch {
+    return jsonResponse({ error: 'Unexpected server error while logging in.' }, 500)
+  }
 }
