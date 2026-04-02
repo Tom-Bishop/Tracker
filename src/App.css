@@ -176,6 +176,10 @@
   color: var(--text-muted);
 }
 
+.danger-text {
+  color: var(--danger);
+}
+
 .user-chip {
   border: 1px solid var(--border-color);
   border-radius: 999px;

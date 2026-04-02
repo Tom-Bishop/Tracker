@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 
 const navItems = [
@@ -224,6 +224,7 @@ function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false)
   const [saveStatus, setSaveStatus] = useState('Saved')
+  const [stateError, setStateError] = useState('')
 
   const [activePage, setActivePage] = useState('Dashboard')
   const [theme, setTheme] = useState('light')
@@ -264,7 +265,14 @@ function App() {
       try {
         const me = await apiRequest('/api/auth/me')
         setUser(me.user)
+      } catch {
+        setUser(null)
+        hasHydratedRef.current = true
+        setIsAuthLoading(false)
+        return
+      }
 
+      try {
         const stateResult = await apiRequest('/api/state')
         const state = stateResult.state ?? {}
 
@@ -281,8 +289,10 @@ function App() {
           if (typeof state.ui.accountFilter === 'string') setAccountFilter(state.ui.accountFilter)
           if (typeof state.ui.activePage === 'string') setActivePage(state.ui.activePage)
         }
-      } catch {
-        setUser(null)
+        setStateError('')
+      } catch (error) {
+        setStateError(error.message)
+        setSaveStatus('State unavailable')
       } finally {
         hasHydratedRef.current = true
         setIsAuthLoading(false)
@@ -340,7 +350,7 @@ function App() {
     }
   }, [user, transactions, budgets, bills, goals, settings, theme, month, accountFilter, activePage])
 
-  const loadAuditEvents = async () => {
+  const loadAuditEvents = useCallback(async () => {
     if (!user) {
       return
     }
@@ -360,13 +370,13 @@ function App() {
     } finally {
       setIsAuditLoading(false)
     }
-  }
+  }, [user])
 
   useEffect(() => {
     if (activePage === 'Security' && user) {
       loadAuditEvents()
     }
-  }, [activePage, user])
+  }, [activePage, user, loadAuditEvents])
 
   const categories = useMemo(() => {
     const fromTransactions = transactions.map((item) => item.category)
@@ -668,6 +678,7 @@ function App() {
 
       setUser(result.user)
       hasHydratedRef.current = true
+      setStateError('')
       setAuthForm({
         displayName: '',
         email: '',
@@ -684,8 +695,9 @@ function App() {
         if (state.settings && typeof state.settings === 'object') {
           setSettings((previous) => ({ ...previous, ...state.settings }))
         }
+        setStateError('')
       } catch {
-        // Keep seeded defaults when no server state exists yet.
+        setStateError('Unable to load saved state for this account yet.')
       }
     } catch (error) {
       setAuthError(error.message)
@@ -702,6 +714,7 @@ function App() {
     }
 
     setUser(null)
+    setStateError('')
     hasHydratedRef.current = false
     setTransactions(initialTransactions)
     setBudgets(initialBudgets)
@@ -1440,6 +1453,7 @@ function App() {
           </button>
           <div className="topbar-actions">
             <span className="save-state">{saveStatus}</span>
+            {stateError && <span className="save-state danger-text">{stateError}</span>}
             <span className="user-chip">{user.email}</span>
             <button type="button" className="text-btn" onClick={logout}>
               Logout
