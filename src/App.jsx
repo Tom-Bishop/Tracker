@@ -8,6 +8,7 @@ const navItems = [
   'Bills',
   'Goals',
   'Reports',
+  'Security',
   'Settings',
 ]
 
@@ -251,6 +252,9 @@ function App() {
     alertOverspending: true,
     weeklySummary: true,
   })
+  const [auditEvents, setAuditEvents] = useState([])
+  const [isAuditLoading, setIsAuditLoading] = useState(false)
+  const [auditError, setAuditError] = useState('')
 
   const hasHydratedRef = useRef(false)
   const saveTimeoutRef = useRef(null)
@@ -335,6 +339,34 @@ function App() {
       }
     }
   }, [user, transactions, budgets, bills, goals, settings, theme, month, accountFilter, activePage])
+
+  const loadAuditEvents = async () => {
+    if (!user) {
+      return
+    }
+
+    setIsAuditLoading(true)
+    setAuditError('')
+
+    try {
+      const result = await apiRequest('/api/audit', {
+        headers: {
+          'x-audit-limit': '80',
+        },
+      })
+      setAuditEvents(Array.isArray(result.events) ? result.events : [])
+    } catch (error) {
+      setAuditError(error.message)
+    } finally {
+      setIsAuditLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activePage === 'Security' && user) {
+      loadAuditEvents()
+    }
+  }, [activePage, user])
 
   const categories = useMemo(() => {
     const fromTransactions = transactions.map((item) => item.category)
@@ -1212,6 +1244,54 @@ function App() {
     </section>
   )
 
+  const renderSecurity = () => (
+    <section className="card">
+      <header className="card-header">
+        <h2>Security Activity</h2>
+        <button type="button" className="primary" onClick={loadAuditEvents}>
+          Refresh
+        </button>
+      </header>
+
+      <p className="security-note">
+        This feed shows account events for your user only: sign-in attempts, secure state reads/writes,
+        and logout activity.
+      </p>
+
+      {isAuditLoading && <p>Loading recent activity...</p>}
+      {auditError && <p className="auth-error">{auditError}</p>}
+
+      {!isAuditLoading && !auditError && auditEvents.length === 0 && (
+        <p>No security events recorded yet.</p>
+      )}
+
+      {!isAuditLoading && auditEvents.length > 0 && (
+        <div className="table-wrap" role="region" aria-label="Security audit events">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Action</th>
+                <th>IP</th>
+                <th>Metadata</th>
+              </tr>
+            </thead>
+            <tbody>
+              {auditEvents.map((event) => (
+                <tr key={event.id}>
+                  <td>{event.createdAt}</td>
+                  <td>{event.action}</td>
+                  <td>{event.ipAddress ?? '-'}</td>
+                  <td className="security-meta">{event.metadata ? JSON.stringify(event.metadata) : '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  )
+
   const pageContent = {
     Dashboard: renderDashboard(),
     Transactions: renderTransactions(),
@@ -1219,6 +1299,7 @@ function App() {
     Bills: renderBills(),
     Goals: renderGoals(),
     Reports: renderReports(),
+    Security: renderSecurity(),
     Settings: renderSettings(),
   }
 

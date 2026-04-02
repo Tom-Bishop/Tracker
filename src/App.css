@@ -541,6 +541,18 @@ td p {
   font-size: 0.78rem;
 }
 
+.security-note {
+  margin: 0.7rem 0 0;
+  color: var(--text-muted);
+}
+
+.security-meta {
+  white-space: normal;
+  max-width: 460px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
