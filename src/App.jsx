@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 
 const navItems = [
@@ -187,7 +187,43 @@ function statusFromUsage(usage) {
   return 'good'
 }
 
+async function apiRequest(path, options = {}) {
+  const response = await fetch(path, {
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers ?? {}),
+    },
+    ...options,
+  })
+
+  let payload = {}
+  try {
+    payload = await response.json()
+  } catch {
+    payload = {}
+  }
+
+  if (!response.ok) {
+    throw new Error(payload.error || 'Request failed.')
+  }
+
+  return payload
+}
+
 function App() {
+  const [user, setUser] = useState(null)
+  const [authMode, setAuthMode] = useState('login')
+  const [authForm, setAuthForm] = useState({
+    displayName: '',
+    email: '',
+    password: '',
+  })
+  const [authError, setAuthError] = useState('')
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false)
+  const [saveStatus, setSaveStatus] = useState('Saved')
+
   const [activePage, setActivePage] = useState('Dashboard')
   const [theme, setTheme] = useState('light')
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -215,6 +251,90 @@ function App() {
     alertOverspending: true,
     weeklySummary: true,
   })
+
+  const hasHydratedRef = useRef(false)
+  const saveTimeoutRef = useRef(null)
+
+  useEffect(() => {
+    const loadSession = async () => {
+      try {
+        const me = await apiRequest('/api/auth/me')
+        setUser(me.user)
+
+        const stateResult = await apiRequest('/api/state')
+        const state = stateResult.state ?? {}
+
+        if (Array.isArray(state.transactions)) setTransactions(state.transactions)
+        if (Array.isArray(state.budgets)) setBudgets(state.budgets)
+        if (Array.isArray(state.bills)) setBills(state.bills)
+        if (Array.isArray(state.goals)) setGoals(state.goals)
+        if (state.settings && typeof state.settings === 'object') {
+          setSettings((previous) => ({ ...previous, ...state.settings }))
+        }
+        if (state.ui && typeof state.ui === 'object') {
+          if (typeof state.ui.theme === 'string') setTheme(state.ui.theme)
+          if (typeof state.ui.month === 'string') setMonth(state.ui.month)
+          if (typeof state.ui.accountFilter === 'string') setAccountFilter(state.ui.accountFilter)
+          if (typeof state.ui.activePage === 'string') setActivePage(state.ui.activePage)
+        }
+      } catch {
+        setUser(null)
+      } finally {
+        hasHydratedRef.current = true
+        setIsAuthLoading(false)
+      }
+    }
+
+    loadSession()
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!user || !hasHydratedRef.current) {
+      return
+    }
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+
+    setSaveStatus('Saving...')
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await apiRequest('/api/state', {
+          method: 'PUT',
+          body: JSON.stringify({
+            transactions,
+            budgets,
+            bills,
+            goals,
+            settings,
+            ui: {
+              theme,
+              month,
+              accountFilter,
+              activePage,
+            },
+          }),
+        })
+        setSaveStatus('Saved')
+      } catch {
+        setSaveStatus('Save failed')
+      }
+    }, 700)
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+    }
+  }, [user, transactions, budgets, bills, goals, settings, theme, month, accountFilter, activePage])
 
   const categories = useMemo(() => {
     const fromTransactions = transactions.map((item) => item.category)
@@ -486,6 +606,86 @@ function App() {
 
   const setThemeMode = () => {
     setTheme((previous) => (previous === 'light' ? 'dark' : 'light'))
+  }
+
+  const onAuthFieldChange = (event) => {
+    const { name, value } = event.target
+    setAuthForm((previous) => ({ ...previous, [name]: value }))
+  }
+
+  const submitAuth = async (event) => {
+    event.preventDefault()
+    setAuthError('')
+    setIsAuthSubmitting(true)
+
+    try {
+      const endpoint = authMode === 'register' ? '/api/auth/register' : '/api/auth/login'
+      const payload = {
+        email: authForm.email,
+        password: authForm.password,
+      }
+
+      if (authMode === 'register') {
+        payload.displayName = authForm.displayName
+      }
+
+      const result = await apiRequest(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+
+      setUser(result.user)
+      hasHydratedRef.current = true
+      setAuthForm({
+        displayName: '',
+        email: '',
+        password: '',
+      })
+
+      try {
+        const stateResult = await apiRequest('/api/state')
+        const state = stateResult.state ?? {}
+        if (Array.isArray(state.transactions)) setTransactions(state.transactions)
+        if (Array.isArray(state.budgets)) setBudgets(state.budgets)
+        if (Array.isArray(state.bills)) setBills(state.bills)
+        if (Array.isArray(state.goals)) setGoals(state.goals)
+        if (state.settings && typeof state.settings === 'object') {
+          setSettings((previous) => ({ ...previous, ...state.settings }))
+        }
+      } catch {
+        // Keep seeded defaults when no server state exists yet.
+      }
+    } catch (error) {
+      setAuthError(error.message)
+    } finally {
+      setIsAuthSubmitting(false)
+    }
+  }
+
+  const logout = async () => {
+    try {
+      await apiRequest('/api/auth/logout', { method: 'POST' })
+    } catch {
+      // Session might already be invalid; proceed with local reset.
+    }
+
+    setUser(null)
+    hasHydratedRef.current = false
+    setTransactions(initialTransactions)
+    setBudgets(initialBudgets)
+    setBills(initialBills)
+    setGoals(initialGoals)
+    setSettings({
+      currency: 'USD',
+      reminders: true,
+      alertOverspending: true,
+      weeklySummary: true,
+    })
+    setActivePage('Dashboard')
+    setTheme('light')
+    setMonth('2026-04')
+    setAccountFilter('All Accounts')
+    setQuery('')
   }
 
   const renderDashboard = () => (
@@ -1022,6 +1222,85 @@ function App() {
     Settings: renderSettings(),
   }
 
+  if (isAuthLoading) {
+    return (
+      <main className="auth-screen theme-light">
+        <section className="auth-card">
+          <h1>Loading Budget Tracker...</h1>
+          <p>Preparing your secure workspace.</p>
+        </section>
+      </main>
+    )
+  }
+
+  if (!user) {
+    return (
+      <main className="auth-screen theme-light">
+        <section className="auth-card">
+          <h1>Budget Tracker</h1>
+          <p>Sign in to access your private, account-locked financial data.</p>
+
+          <div className="auth-switch">
+            <button
+              type="button"
+              className={authMode === 'login' ? 'active' : ''}
+              onClick={() => {
+                setAuthMode('login')
+                setAuthError('')
+              }}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              className={authMode === 'register' ? 'active' : ''}
+              onClick={() => {
+                setAuthMode('register')
+                setAuthError('')
+              }}
+            >
+              Register
+            </button>
+          </div>
+
+          <form className="auth-form" onSubmit={submitAuth}>
+            {authMode === 'register' && (
+              <label>
+                Display Name
+                <input
+                  name="displayName"
+                  value={authForm.displayName}
+                  onChange={onAuthFieldChange}
+                  required
+                />
+              </label>
+            )}
+            <label>
+              Email
+              <input type="email" name="email" value={authForm.email} onChange={onAuthFieldChange} required />
+            </label>
+            <label>
+              Password
+              <input
+                type="password"
+                name="password"
+                value={authForm.password}
+                onChange={onAuthFieldChange}
+                minLength={8}
+                required
+              />
+            </label>
+            <button type="submit" className="primary" disabled={isAuthSubmitting}>
+              {isAuthSubmitting ? 'Please wait...' : authMode === 'login' ? 'Login' : 'Create Account'}
+            </button>
+          </form>
+
+          {authError && <p className="auth-error">{authError}</p>}
+        </section>
+      </main>
+    )
+  }
+
   return (
     <main className={`app ${theme === 'dark' ? 'theme-dark' : 'theme-light'}`}>
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
@@ -1078,6 +1357,13 @@ function App() {
           <button type="button" className="primary" onClick={openModalForNew}>
             Add Transaction
           </button>
+          <div className="topbar-actions">
+            <span className="save-state">{saveStatus}</span>
+            <span className="user-chip">{user.email}</span>
+            <button type="button" className="text-btn" onClick={logout}>
+              Logout
+            </button>
+          </div>
         </header>
 
         <section className="page" aria-live="polite">

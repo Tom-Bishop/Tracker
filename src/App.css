@@ -8,6 +8,69 @@
   box-shadow: 0 10px 24px rgba(13, 23, 38, 0.06);
 }
 
+.auth-screen {
+  min-height: calc(100vh - 2rem);
+  display: grid;
+  place-items: center;
+}
+
+.auth-card {
+  width: min(460px, 100%);
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 1.2rem;
+  box-shadow: 0 8px 20px rgba(13, 23, 38, 0.08);
+}
+
+.auth-card h1 {
+  margin: 0;
+}
+
+.auth-card p {
+  color: var(--text-muted);
+}
+
+.auth-switch {
+  margin-top: 0.85rem;
+  display: flex;
+  gap: 0.45rem;
+}
+
+.auth-switch button {
+  border: 1px solid var(--border-color);
+  background: var(--surface-soft);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0.45rem 0.65rem;
+  cursor: pointer;
+}
+
+.auth-switch button.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: color-mix(in oklab, var(--primary) 40%, var(--border-color));
+}
+
+.auth-form {
+  margin-top: 0.9rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 0.28rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.auth-error {
+  margin: 0.7rem 0 0;
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
 .theme-light {
   --bg: #f6f8fb;
   --surface: #ffffff;
@@ -98,6 +161,27 @@
   grid-template-columns: auto repeat(3, minmax(0, 220px)) auto;
   gap: 0.6rem;
   align-items: end;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.save-state {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.user-chip {
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 0.3rem 0.58rem;
+  font-size: 0.76rem;
+  background: var(--surface-soft);
 }
 
 .topbar label {
@@ -500,6 +584,11 @@ td p {
 
   .topbar button.primary {
     grid-column: 1 / -1;
+  }
+
+  .topbar-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
 
   .kpi-grid {

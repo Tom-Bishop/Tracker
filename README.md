@@ -99,6 +99,7 @@ database_id = "YOUR_DATABASE_ID"
 
 ```bash
 wrangler d1 execute tracker-db --remote --file=./migrations/0001_init.sql
+wrangler d1 execute tracker-db --remote --file=./migrations/0002_user_state.sql
 ```
 
 ### 4. Add session secret
