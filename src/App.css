@@ -1,0 +1,259 @@
+.app-shell {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.hero-panel {
+  border-radius: 1.25rem;
+  border: 1px solid var(--border);
+  background: linear-gradient(145deg, #fff9eb, #edf7f4 55%, #e7f2fc);
+  padding: 1.2rem;
+  animation: rise-in 0.45s ease;
+}
+
+.eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  color: var(--ink-muted);
+}
+
+.hero-heading h1 {
+  margin: 0.5rem 0;
+  font-size: clamp(1.6rem, 3.8vw, 2.5rem);
+  line-height: 1.1;
+}
+
+.hero-heading p {
+  margin: 0;
+  color: var(--ink-soft);
+  max-width: 65ch;
+}
+
+.stats-grid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.stat-card {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 0.95rem;
+  padding: 0.8rem;
+}
+
+.stat-card h2 {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.stat-card p {
+  margin: 0.35rem 0 0;
+  font-family: var(--display);
+  font-size: 1.35rem;
+  color: var(--ink-strong);
+}
+
+.stat-card.emphasis {
+  background: linear-gradient(150deg, #0b6d77, #118790);
+}
+
+.stat-card.emphasis h2,
+.stat-card.emphasis p {
+  color: #f0fef7;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 1.25rem;
+}
+
+.panel {
+  border-radius: 1.15rem;
+  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  padding: 1rem;
+  animation: rise-in 0.6s ease both;
+}
+
+.panel h2 {
+  margin: 0 0 0.85rem;
+  font-size: 1rem;
+  letter-spacing: 0.03em;
+}
+
+.transaction-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.transaction-form label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+}
+
+.transaction-form input,
+.transaction-form select,
+.transaction-form button {
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  padding: 0.58rem 0.7rem;
+  font: inherit;
+}
+
+.transaction-form button {
+  grid-column: 1 / -1;
+  background: linear-gradient(120deg, #ef8354, #e67a47);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.activity-list li {
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  padding: 0.65rem 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.activity-list li.income {
+  background: #effaf4;
+}
+
+.activity-list li.expense {
+  background: #fff3ef;
+}
+
+.activity-list div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.activity-list strong {
+  color: var(--ink-strong);
+  font-size: 0.9rem;
+}
+
+.activity-list span {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+.budget-panel {
+  margin-top: 0.15rem;
+}
+
+.budget-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.budget-card {
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  padding: 0.7rem;
+  background: #fff;
+}
+
+.budget-card h3 {
+  margin: 0 0 0.65rem;
+  font-size: 0.88rem;
+}
+
+.budget-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.budget-row strong {
+  color: var(--ink-strong);
+}
+
+.meter {
+  margin: 0.6rem 0;
+  border-radius: 999px;
+  background: #ebf0ed;
+  height: 0.42rem;
+  overflow: hidden;
+}
+
+.meter div {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(120deg, #0b6d77, #2aa393);
+}
+
+.budget-card p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #1b5f4f;
+}
+
+.budget-card p.alert {
+  color: #b44328;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 980px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .budget-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .hero-panel,
+  .panel {
+    padding: 0.85rem;
+    border-radius: 1rem;
+  }
+
+  .transaction-form {
+    grid-template-columns: 1fr;
+  }
+
+  .budget-grid {
+    grid-template-columns: 1fr;
+  }
+}

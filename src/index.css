@@ -1,0 +1,38 @@
+:root {
+  --surface: #f6f4ee;
+  --panel-bg: rgba(255, 255, 255, 0.94);
+  --border: #d9ddd9;
+  --ink-strong: #17383d;
+  --ink-soft: #486369;
+  --ink-muted: #58747a;
+  --display: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  --body: 'Source Sans Pro', 'Lucida Sans Unicode', 'Segoe UI', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--body);
+  color: var(--ink-soft);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(239, 131, 84, 0.15), transparent 36%),
+    radial-gradient(circle at 90% 10%, rgba(11, 109, 119, 0.2), transparent 30%),
+    linear-gradient(180deg, #f9f7f1, var(--surface));
+}
+
+#root {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--ink-strong);
+  font-family: var(--display);
+}
