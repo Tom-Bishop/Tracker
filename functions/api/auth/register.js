@@ -1,4 +1,5 @@
 import { hashPassword, makeSessionCookie, signSession } from '../_lib/auth.js'
+import { writeAuditLog } from '../_lib/security.js'
 
 function jsonResponse(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -43,6 +44,10 @@ export const onRequestPost = async (context) => {
 
   const userId = insertResult.meta.last_row_id
   const session = await signSession(userId, context.env.SESSION_SECRET)
+
+  await writeAuditLog(context, userId, 'auth.register', {
+    email: normalizedEmail,
+  })
 
   return jsonResponse(
     {

@@ -100,6 +100,7 @@ database_id = "YOUR_DATABASE_ID"
 ```bash
 wrangler d1 execute tracker-db --remote --file=./migrations/0001_init.sql
 wrangler d1 execute tracker-db --remote --file=./migrations/0002_user_state.sql
+wrangler d1 execute tracker-db --remote --file=./migrations/0003_audit_logs.sql
 ```
 
 ### 4. Add session secret
@@ -109,5 +110,10 @@ In Cloudflare Pages project settings:
 - Go to Settings > Environment variables
 - Add secret: SESSION_SECRET
 - Use a long random value (at least 32 chars)
+
+Add a second secret for state encryption-at-rest:
+
+- Name: DATA_ENCRYPTION_KEY
+- Value: long random value (at least 32 chars)
 
 After adding bindings/secrets, redeploy the site.

@@ -1,4 +1,5 @@
 import { makeSessionCookie, signSession, verifyPassword } from '../_lib/auth.js'
+import { writeAuditLog } from '../_lib/security.js'
 
 function jsonResponse(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -31,15 +32,19 @@ export const onRequestPost = async (context) => {
     .first()
 
   if (!user) {
+    await writeAuditLog(context, null, 'auth.login.failed', { email: normalizedEmail })
     return jsonResponse({ error: 'Invalid login credentials.' }, 401)
   }
 
   const validPassword = await verifyPassword(passwordValue, user.password_hash)
   if (!validPassword) {
+    await writeAuditLog(context, user.id, 'auth.login.failed', { email: normalizedEmail })
     return jsonResponse({ error: 'Invalid login credentials.' }, 401)
   }
 
   const session = await signSession(user.id, context.env.SESSION_SECRET)
+
+  await writeAuditLog(context, user.id, 'auth.login.success')
 
   return jsonResponse(
     {

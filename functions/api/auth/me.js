@@ -1,4 +1,5 @@
 import { requireUser } from '../_lib/auth.js'
+import { writeAuditLog } from '../_lib/security.js'
 
 export const onRequestGet = async (context) => {
   const user = await requireUser(context)
@@ -10,6 +11,8 @@ export const onRequestGet = async (context) => {
       },
     })
   }
+
+  await writeAuditLog(context, user.id, 'auth.me')
 
   return new Response(
     JSON.stringify({
