@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 
 const budgetLimits = {
@@ -8,49 +8,6 @@ const budgetLimits = {
   Utilities: 260,
   Fun: 300,
 }
-
-const initialTransactions = [
-  {
-    id: 1,
-    type: 'income',
-    label: 'Salary',
-    amount: 4200,
-    category: 'Paycheck',
-    date: '2026-04-01',
-  },
-  {
-    id: 2,
-    type: 'expense',
-    label: 'Apartment Rent',
-    amount: 1300,
-    category: 'Housing',
-    date: '2026-04-02',
-  },
-  {
-    id: 3,
-    type: 'expense',
-    label: 'Groceries',
-    amount: 126,
-    category: 'Groceries',
-    date: '2026-04-03',
-  },
-  {
-    id: 4,
-    type: 'expense',
-    label: 'Internet + Power',
-    amount: 172,
-    category: 'Utilities',
-    date: '2026-04-04',
-  },
-  {
-    id: 5,
-    type: 'income',
-    label: 'Freelance Design',
-    amount: 620,
-    category: 'Side Gig',
-    date: '2026-04-07',
-  },
-]
 
 const defaultForm = {
   type: 'expense',
@@ -66,9 +23,66 @@ const currency = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 0,
 })
 
+async function apiRequest(path, options = {}) {
+  const response = await fetch(path, {
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers ?? {}),
+    },
+    ...options,
+  })
+
+  let payload = {}
+  try {
+    payload = await response.json()
+  } catch {
+    payload = {}
+  }
+
+  if (!response.ok) {
+    const message = payload.error || 'Request failed.'
+    throw new Error(message)
+  }
+
+  return payload
+}
+
 function App() {
-  const [transactions, setTransactions] = useState(initialTransactions)
+  const [user, setUser] = useState(null)
+  const [authMode, setAuthMode] = useState('login')
+  const [authForm, setAuthForm] = useState({
+    displayName: '',
+    email: '',
+    password: '',
+  })
+  const [transactions, setTransactions] = useState([])
   const [form, setForm] = useState(defaultForm)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false)
+  const [isSubmittingTransaction, setIsSubmittingTransaction] = useState(false)
+  const [notice, setNotice] = useState('')
+
+  const loadTransactions = async () => {
+    const data = await apiRequest('/api/transactions')
+    setTransactions(data.transactions ?? [])
+  }
+
+  useEffect(() => {
+    const bootstrap = async () => {
+      try {
+        const me = await apiRequest('/api/auth/me')
+        setUser(me.user)
+        await loadTransactions()
+      } catch {
+        setUser(null)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    bootstrap()
+  }, [])
 
   const { income, expenses, balance, savingsRate, spentByCategory, recentItems } =
     useMemo(() => {
@@ -126,29 +140,199 @@ function App() {
     setForm((previous) => ({ ...previous, [name]: value }))
   }
 
-  const handleAddTransaction = (event) => {
+  const handleAuthFieldChange = (event) => {
+    const { name, value } = event.target
+    setAuthForm((previous) => ({ ...previous, [name]: value }))
+  }
+
+  const resetAuthForm = () => {
+    setAuthForm({
+      displayName: '',
+      email: '',
+      password: '',
+    })
+  }
+
+  const handleAuthSubmit = async (event) => {
     event.preventDefault()
+    setNotice('')
+    setIsSubmittingAuth(true)
+
+    try {
+      const endpoint = authMode === 'register' ? '/api/auth/register' : '/api/auth/login'
+      const payload = {
+        email: authForm.email,
+        password: authForm.password,
+      }
+
+      if (authMode === 'register') {
+        payload.displayName = authForm.displayName
+      }
+
+      const data = await apiRequest(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+
+      setUser(data.user)
+      resetAuthForm()
+      await loadTransactions()
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setIsSubmittingAuth(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    setNotice('')
+    try {
+      await apiRequest('/api/auth/logout', {
+        method: 'POST',
+      })
+    } finally {
+      setUser(null)
+      setTransactions([])
+    }
+  }
+
+  const handleAddTransaction = async (event) => {
+    event.preventDefault()
+    setNotice('')
 
     if (!form.label.trim()) {
+      setNotice('Please add a transaction description.')
       return
     }
 
     const numericAmount = Number(form.amount)
     if (!numericAmount || numericAmount <= 0) {
+      setNotice('Please enter a valid amount.')
       return
     }
 
-    const transaction = {
-      id: Date.now(),
-      type: form.type,
-      label: form.label.trim(),
-      amount: numericAmount,
-      category: form.category.trim() || 'General',
-      date: form.date,
-    }
+    setIsSubmittingTransaction(true)
 
-    setTransactions((previous) => [transaction, ...previous])
-    setForm((previous) => ({ ...defaultForm, type: previous.type }))
+    try {
+      const data = await apiRequest('/api/transactions', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: form.type,
+          label: form.label.trim(),
+          amount: numericAmount,
+          category: form.category.trim() || 'General',
+          date: form.date,
+        }),
+      })
+
+      setTransactions((previous) => [data.transaction, ...previous])
+      setForm((previous) => ({ ...defaultForm, type: previous.type }))
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setIsSubmittingTransaction(false)
+    }
+  }
+
+  const handleDeleteTransaction = async (transactionId) => {
+    setNotice('')
+    try {
+      await apiRequest(`/api/transactions/${transactionId}`, {
+        method: 'DELETE',
+      })
+      setTransactions((previous) => previous.filter((item) => item.id !== transactionId))
+    } catch (error) {
+      setNotice(error.message)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <main className="app-shell">
+        <section className="hero-panel">
+          <h1>Loading your secure workspace...</h1>
+        </section>
+      </main>
+    )
+  }
+
+  if (!user) {
+    return (
+      <main className="app-shell auth-shell">
+        <section className="hero-panel">
+          <p className="eyebrow">Private by Design</p>
+          <div className="hero-heading">
+            <h1>Track money privately with your own account</h1>
+            <p>
+              Create a secure login, then every income and expense entry is saved to your private
+              Cloudflare D1 database records.
+            </p>
+          </div>
+        </section>
+
+        <section className="panel auth-panel">
+          <header className="auth-header">
+            <h2>{authMode === 'login' ? 'Sign in' : 'Create account'}</h2>
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={() => {
+                setNotice('')
+                setAuthMode((previous) => (previous === 'login' ? 'register' : 'login'))
+              }}
+            >
+              {authMode === 'login' ? 'Need an account?' : 'Already registered?'}
+            </button>
+          </header>
+
+          <form className="transaction-form" onSubmit={handleAuthSubmit}>
+            {authMode === 'register' && (
+              <label>
+                Display Name
+                <input
+                  name="displayName"
+                  value={authForm.displayName}
+                  onChange={handleAuthFieldChange}
+                  placeholder="Tom"
+                  required
+                />
+              </label>
+            )}
+
+            <label>
+              Email
+              <input
+                type="email"
+                name="email"
+                value={authForm.email}
+                onChange={handleAuthFieldChange}
+                placeholder="you@example.com"
+                required
+              />
+            </label>
+
+            <label>
+              Password
+              <input
+                type="password"
+                name="password"
+                value={authForm.password}
+                onChange={handleAuthFieldChange}
+                placeholder="Minimum 8 characters"
+                minLength={8}
+                required
+              />
+            </label>
+
+            <button type="submit" disabled={isSubmittingAuth}>
+              {isSubmittingAuth ? 'Please wait...' : authMode === 'login' ? 'Sign in' : 'Create account'}
+            </button>
+          </form>
+
+          {notice && <p className="notice">{notice}</p>}
+        </section>
+      </main>
+    )
   }
 
   return (
@@ -157,7 +341,15 @@ function App() {
         <p className="eyebrow">Monthly Planner</p>
         <div className="hero-heading">
           <h1>Income, Expense, and Budget Tracker</h1>
-          <p>Track cash flow, monitor spending habits, and keep every budget category on target.</p>
+          <p>
+            Welcome back, {user.displayName}. Your entries are private and tied to your account.
+          </p>
+        </div>
+        <div className="toolbar">
+          <span className="user-pill">{user.email}</span>
+          <button type="button" className="ghost-btn" onClick={handleLogout}>
+            Log out
+          </button>
         </div>
         <div className="stats-grid" aria-label="Financial summary">
           <article className="stat-card">
@@ -233,8 +425,11 @@ function App() {
               <input type="date" name="date" value={form.date} onChange={handleFieldChange} required />
             </label>
 
-            <button type="submit">Add Entry</button>
+            <button type="submit" disabled={isSubmittingTransaction}>
+              {isSubmittingTransaction ? 'Saving...' : 'Add Entry'}
+            </button>
           </form>
+          {notice && <p className="notice">{notice}</p>}
         </article>
 
         <article className="panel">
@@ -252,6 +447,14 @@ function App() {
                   <strong>{item.type === 'income' ? '+' : '-'}{currency.format(item.amount)}</strong>
                   <span>{item.date}</span>
                 </div>
+                <button
+                  type="button"
+                  className="delete-btn"
+                  onClick={() => handleDeleteTransaction(item.id)}
+                  aria-label={`Delete ${item.label}`}
+                >
+                  Remove
+                </button>
               </li>
             ))}
           </ul>
