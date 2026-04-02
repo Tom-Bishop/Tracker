@@ -16,6 +16,10 @@ export const onRequestPost = async (context) => {
     return jsonResponse({ error: 'Server is missing SESSION_SECRET configuration.' }, 500)
   }
 
+  if (!context.env.DB) {
+    return jsonResponse({ error: 'Server is missing DB binding configuration.' }, 500)
+  }
+
   const { email, password } = await context.request.json().catch(() => ({}))
 
   const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : ''
@@ -25,11 +29,16 @@ export const onRequestPost = async (context) => {
     return jsonResponse({ error: 'Email and password are required.' }, 400)
   }
 
-  const user = await context.env.DB.prepare(
-    'SELECT id, email, display_name, password_hash FROM users WHERE email = ?',
-  )
-    .bind(normalizedEmail)
-    .first()
+  let user
+  try {
+    user = await context.env.DB.prepare(
+      'SELECT id, email, display_name, password_hash FROM users WHERE email = ?',
+    )
+      .bind(normalizedEmail)
+      .first()
+  } catch {
+    return jsonResponse({ error: 'Database schema not initialized. Run migrations (0001, 0002, 0003).' }, 500)
+  }
 
   if (!user) {
     await writeAuditLog(context, null, 'auth.login.failed', { email: normalizedEmail })

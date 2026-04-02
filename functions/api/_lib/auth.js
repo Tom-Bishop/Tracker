@@ -174,9 +174,18 @@ export async function requireUser(context) {
     return null
   }
 
-  const user = await context.env.DB.prepare('SELECT id, email, display_name FROM users WHERE id = ?')
-    .bind(session.uid)
-    .first()
+  if (!context.env.DB) {
+    return null
+  }
+
+  let user = null
+  try {
+    user = await context.env.DB.prepare('SELECT id, email, display_name FROM users WHERE id = ?')
+      .bind(session.uid)
+      .first()
+  } catch {
+    return null
+  }
 
   return user ?? null
 }

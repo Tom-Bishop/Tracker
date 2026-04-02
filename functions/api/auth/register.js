@@ -16,6 +16,10 @@ export const onRequestPost = async (context) => {
     return jsonResponse({ error: 'Server is missing SESSION_SECRET configuration.' }, 500)
   }
 
+  if (!context.env.DB) {
+    return jsonResponse({ error: 'Server is missing DB binding configuration.' }, 500)
+  }
+
   const { email, password, displayName } = await context.request.json().catch(() => ({}))
 
   const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : ''
@@ -26,9 +30,14 @@ export const onRequestPost = async (context) => {
     return jsonResponse({ error: 'Enter a valid name, email, and password (min 8 characters).' }, 400)
   }
 
-  const existingUser = await context.env.DB.prepare('SELECT id FROM users WHERE email = ?')
-    .bind(normalizedEmail)
-    .first()
+  let existingUser
+  try {
+    existingUser = await context.env.DB.prepare('SELECT id FROM users WHERE email = ?')
+      .bind(normalizedEmail)
+      .first()
+  } catch {
+    return jsonResponse({ error: 'Database schema not initialized. Run migrations (0001, 0002, 0003).' }, 500)
+  }
 
   if (existingUser) {
     return jsonResponse({ error: 'This email is already registered.' }, 409)
@@ -36,11 +45,16 @@ export const onRequestPost = async (context) => {
 
   const passwordHash = await hashPassword(passwordValue)
 
-  const insertResult = await context.env.DB.prepare(
-    'INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)',
-  )
-    .bind(normalizedEmail, passwordHash, normalizedName)
-    .run()
+  let insertResult
+  try {
+    insertResult = await context.env.DB.prepare(
+      'INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)',
+    )
+      .bind(normalizedEmail, passwordHash, normalizedName)
+      .run()
+  } catch {
+    return jsonResponse({ error: 'Unable to create account. Verify D1 schema and retry.' }, 500)
+  }
 
   const userId = insertResult.meta.last_row_id
   const session = await signSession(userId, context.env.SESSION_SECRET)
