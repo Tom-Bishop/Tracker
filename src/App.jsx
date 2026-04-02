@@ -256,6 +256,9 @@ function App() {
   const [auditEvents, setAuditEvents] = useState([])
   const [isAuditLoading, setIsAuditLoading] = useState(false)
   const [auditError, setAuditError] = useState('')
+  const [setupChecks, setSetupChecks] = useState([])
+  const [isSetupLoading, setIsSetupLoading] = useState(false)
+  const [setupError, setSetupError] = useState('')
 
   const hasHydratedRef = useRef(false)
   const saveTimeoutRef = useRef(null)
@@ -372,11 +375,30 @@ function App() {
     }
   }, [user])
 
+  const loadSetupChecks = useCallback(async () => {
+    if (!user) {
+      return
+    }
+
+    setIsSetupLoading(true)
+    setSetupError('')
+
+    try {
+      const result = await apiRequest('/api/setup/check')
+      setSetupChecks(Array.isArray(result.checks) ? result.checks : [])
+    } catch (error) {
+      setSetupError(error.message)
+    } finally {
+      setIsSetupLoading(false)
+    }
+  }, [user])
+
   useEffect(() => {
     if (activePage === 'Security' && user) {
       loadAuditEvents()
+      loadSetupChecks()
     }
-  }, [activePage, user, loadAuditEvents])
+  }, [activePage, user, loadAuditEvents, loadSetupChecks])
 
   const categories = useMemo(() => {
     const fromTransactions = transactions.map((item) => item.category)
@@ -1261,10 +1283,33 @@ function App() {
     <section className="card">
       <header className="card-header">
         <h2>Security Activity</h2>
-        <button type="button" className="primary" onClick={loadAuditEvents}>
-          Refresh
-        </button>
+        <div className="inline-form">
+          <button type="button" className="primary" onClick={loadSetupChecks}>
+            Run Setup Check
+          </button>
+          <button type="button" className="primary" onClick={loadAuditEvents}>
+            Refresh Activity
+          </button>
+        </div>
       </header>
+
+      <h3>Environment Checklist</h3>
+      {isSetupLoading && <p>Checking environment setup...</p>}
+      {setupError && <p className="auth-error">{setupError}</p>}
+      {!isSetupLoading && !setupError && setupChecks.length > 0 && (
+        <ul className="setup-list">
+          {setupChecks.map((item) => (
+            <li key={item.key} className={item.ok ? 'ok' : 'fail'}>
+              <strong>{item.ok ? 'PASS' : 'FAIL'}</strong>
+              <span>{item.label}</span>
+              <small>{item.detail}</small>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!isSetupLoading && !setupError && setupChecks.length === 0 && (
+        <p>No setup checks loaded yet.</p>
+      )}
 
       <p className="security-note">
         This feed shows account events for your user only: sign-in attempts, secure state reads/writes,

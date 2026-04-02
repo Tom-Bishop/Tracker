@@ -557,6 +557,39 @@ td p {
   color: var(--text-muted);
 }
 
+.setup-list {
+  list-style: none;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.setup-list li {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  padding: 0.55rem 0.65rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.setup-list li.ok strong {
+  color: var(--success);
+}
+
+.setup-list li.fail strong {
+  color: var(--danger);
+}
+
+.setup-list li span {
+  font-weight: 600;
+}
+
+.setup-list li small {
+  color: var(--text-muted);
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
