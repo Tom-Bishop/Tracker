@@ -1,6 +1,6 @@
 const encoder = new TextEncoder()
 
-const PASSWORD_ITERATIONS = 210000
+const PASSWORD_ITERATIONS = 10000
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7
 
 function bytesToBase64Url(bytes) {
