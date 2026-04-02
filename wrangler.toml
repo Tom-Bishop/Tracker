@@ -1,3 +1,8 @@
 name = "tracker"
 compatibility_date = "2026-04-02"
 pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tracker"
+database_id = "7498c1bf-0f41-4b7c-97e2-01024595ac39"
